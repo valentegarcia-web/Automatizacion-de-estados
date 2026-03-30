@@ -410,31 +410,55 @@ def actualizar_celda(ws, row, col, value, forzar=False):
     Si la celda contiene una fórmula (empieza con '='), NO la sobreescribe
     a menos que forzar=True.
     """
-    # Resolver merged range → celda superior izquierda
+    from openpyxl.cell.cell import MergedCell
     target_row, target_col = row, col
-    for rng in ws.merged_cells.ranges:
+    merge_range = None
+    for rng in list(ws.merged_cells.ranges):
         if rng.min_row <= row <= rng.max_row and rng.min_col <= col <= rng.max_col:
             target_row, target_col = rng.min_row, rng.min_col
+            merge_range = rng
             break
 
     celda = ws.cell(target_row, target_col)
+    # Si sigue siendo MergedCell, desmerge el rango y reintenta
+    if isinstance(celda, MergedCell) and merge_range:
+        try:
+            ws.unmerge_cells(str(merge_range))
+        except Exception:
+            pass
+        celda = ws.cell(target_row, target_col)
     # Preservar fórmulas existentes
-    if not forzar and isinstance(celda.value, str) and celda.value.startswith("="):
+    if not forzar and isinstance(celda.value, str) and str(celda.value).startswith("="):
         return
-    celda.value = value
+    try:
+        celda.value = value
+    except AttributeError:
+        for rng in list(ws.merged_cells.ranges):
+            if rng.min_row <= row <= rng.max_row and rng.min_col <= col <= rng.max_col:
+                try:
+                    ws.unmerge_cells(str(rng))
+                except Exception:
+                    pass
+        ws.cell(row, col).value = value
 
 
 def copiar_formato_fila(ws, fila_origen, fila_destino):
     """Copia formato (font, fill, border, number_format, alignment) de una
     fila a otra, columnas A-O (1-15)."""
+    from openpyxl.cell.cell import MergedCell
     for col in range(1, 16):
         src = ws.cell(fila_origen, col)
         dst = ws.cell(fila_destino, col)
-        dst.font = copy(src.font)
-        dst.fill = copy(src.fill)
-        dst.border = copy(src.border)
-        dst.number_format = src.number_format
-        dst.alignment = copy(src.alignment)
+        if isinstance(src, MergedCell) or isinstance(dst, MergedCell):
+            continue
+        try:
+            dst.font = copy(src.font)
+            dst.fill = copy(src.fill)
+            dst.border = copy(src.border)
+            dst.number_format = src.number_format
+            dst.alignment = copy(src.alignment)
+        except AttributeError:
+            continue
 
 
 def insertar_instrumento(ws, fila_totales, datos, fila_ref, periodo):
