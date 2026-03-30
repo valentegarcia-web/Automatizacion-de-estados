@@ -1,0 +1,67 @@
+name: Procesar Estados de Cuenta
+
+on:
+  # Ejecutar manualmente desde GitHub (boton "Run workflow")
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Modo de ejecucion'
+        required: true
+        default: 'completo'
+        type: choice
+        options:
+          - completo
+          - solo-extraer
+          - solo-consolidar
+
+  # Ejecutar automaticamente al subir PDFs
+  push:
+    paths:
+      - 'PDFs_Origen/**'
+      - '00_Maestro_Anterior/**'
+
+jobs:
+  procesar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Crear carpetas de salida
+        run: |
+          mkdir -p Resultados_Excel
+          mkdir -p "Estados de cuenta del mes"
+
+      - name: Ejecutar procesamiento
+        run: |
+          MODO="${{ github.event.inputs.modo || 'completo' }}"
+          if [ "$MODO" = "solo-extraer" ]; then
+            python main.py --solo-extraer
+          elif [ "$MODO" = "solo-consolidar" ]; then
+            python main.py --solo-consolidar
+          else
+            python main.py
+          fi
+
+      - name: Subir Reporte de Extraccion
+        uses: actions/upload-artifact@v4
+        with:
+          name: Reporte_Extraccion
+          path: Resultados_Excel/Reporte_Consolidado.xlsx
+          if-no-files-found: warn
+
+      - name: Subir Estados de Cuenta Consolidados
+        uses: actions/upload-artifact@v4
+        with:
+          name: Estados_Cuenta_Consolidados
+          path: Estados de cuenta del mes/*.xlsx
+          if-no-files-found: warn

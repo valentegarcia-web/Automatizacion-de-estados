@@ -1,0 +1,24 @@
+# Archivos del sistema
+.DS_Store
+__pycache__/
+*.pyc
+
+# PDFs de origen (datos sensibles - cada usuario coloca los suyos)
+PDFs_Origen/*.pdf
+
+# Resultados generados
+Resultados_Excel/*.xlsx
+Estados de cuenta del mes/*.xlsx
+
+# Maestro anterior (datos sensibles)
+00_Maestro_Anterior/*.xlsx
+
+# Scripts de ejecucion local
+*.command
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
